@@ -1,4 +1,7 @@
 #include <bits/stdc++.h>
+#include "help.cpp"
+#include "MESI.cpp"
+
 using namespace std;
  
 typedef long long int ll;
@@ -29,7 +32,15 @@ const int MOD = 1000000007;
 #define Mp make_pair
 #define Sz(v) ((int)(v).size())
 #define F first
-#define S second
+
 #define pr(v) cout<<v<<endl;
 
-enum MESI { M , E , S ,I = 0};
+
+
+
+
+
+int main(int argc, char *argv[]) {
+
+
+}

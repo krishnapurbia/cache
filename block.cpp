@@ -1,7 +1,8 @@
 #include <bits/stdc++.h>
+#include "MESI.cpp"
 using namespace std;
  
-typedef long long int ll;
+typedef  long long int ll;
 typedef unsigned long long int ull;
 typedef pair<int, int> pip;
 typedef pair<ll, ll> plip;
@@ -29,7 +30,21 @@ const int MOD = 1000000007;
 #define Mp make_pair
 #define Sz(v) ((int)(v).size())
 #define F first
-#define S second
+
 #define pr(v) cout<<v<<endl;
 
-enum MESI { M , E , S ,I = 0};
+class Block {
+    public:
+         ull lru;      
+        MESI pos ;
+        ull add;     
+        bool indi;                  
+                  
+        Block()   {
+            lru = 0;
+            indi = I;
+            add = (ull)0;
+            indi = false ; 
+        }
+    };
+    

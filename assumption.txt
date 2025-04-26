@@ -1,0 +1,2 @@
+- Used snooping protocol - Invalidate
+- Also , Used BusUpate when the other cache have the same memory address .Instead of tranfering from memory , it directly transfers from that other cache

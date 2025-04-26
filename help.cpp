@@ -29,7 +29,19 @@ const int MOD = 1000000007;
 #define Mp make_pair
 #define Sz(v) ((int)(v).size())
 #define F first
-#define S second
+
 #define pr(v) cout<<v<<endl;
 
-enum MESI { M , E , S ,I = 0};
+
+void Help() {
+    
+    pr(
+        "  -h : for help\n"
+        "  -t <tracefile> : prefix of 4 trace files (e.g. app1)\n"
+        "  -s <s> : no of set index bits (S = 2^s sets)\n"
+        "  -E <E> : associativity (lines per set)\n"
+        "  -b <b> : no of block offset bits (block size = 2^b bytes)\n"
+        "  -o <outputfile> : file to write output statistics\n");
+ 
+    
+}

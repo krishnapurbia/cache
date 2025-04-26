@@ -1,4 +1,5 @@
 #include <bits/stdc++.h>
+#include "Block.cpp"
 using namespace std;
  
 typedef long long int ll;
@@ -32,4 +33,16 @@ const int MOD = 1000000007;
 #define S second
 #define pr(v) cout<<v<<endl;
 
-enum MESI { M , E , S ,I = 0};
+
+ll noofsets = 0 ;
+ll assoc = 0;
+ll blocksize = 0;
+ll offset = 0;
+class Cache {
+    public:
+        ll lastcycletillvalid = 0;
+        vector < vector < Block>> maze;
+        Cache() { 
+            maze  = 
+        };
+};
