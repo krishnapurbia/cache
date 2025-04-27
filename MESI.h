@@ -31,5 +31,12 @@ const int MOD = 1000000007;
 #define F first
 #define S second
 #define pr(v) cout<<v<<endl;
+// MESI.h
+#ifndef MESI_H
+#define MESI_H
 
-enum MESI { M , E , S ,I = 0};
+enum MESI { M, E, S, I };
+
+#endif
+
+
