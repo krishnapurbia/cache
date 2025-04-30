@@ -351,7 +351,12 @@ int main(int argc, char *argv[]) {
             }
         };
         // 2. Bus cycle: start or continue transaction
+        bool wasbusy = busBusy;
         gunc();
+        bool isbusy = busBusy;
+        if(!wasbusy && isbusy){
+            stats[currentReq.core].idleCycles++;
+        }
         // 1. Core operations
         for(int core=0; core<4; core++) {
             if(coreDone[core] && currentReq.othercore != core) continue;
@@ -395,7 +400,7 @@ int main(int argc, char *argv[]) {
                     stats[core].busRd++;
                     busQueue.push_back({core, tag, (int)setIndex, BusRd});
 
-                    stats[core].idleCycles++;
+                    //stats[core].idleCycles++;
                     Btr[core]++;
                 }
             }
@@ -429,7 +434,7 @@ int main(int argc, char *argv[]) {
                     }
                     else if(st == SHARED) {
                         stats[core].busRdX++;
-                        stats[core].idleCycles++;
+                       // stats[core].idleCycles++;
                         stats[core].totalCycles+=1;
                         busQueue.push_back({core, tag, (int)setIndex, BusRdX});
 
@@ -443,7 +448,7 @@ int main(int argc, char *argv[]) {
                     stats[core].writeOps++;
                     stats[core].misses++;
                     stats[core].busRdX++;
-                    stats[core].idleCycles++;
+                   // stats[core].idleCycles++;
                     stats[core].totalCycles+=1;
                     busQueue.push_back({core, tag, (int)setIndex, BusRdX});
 
