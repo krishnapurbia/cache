@@ -475,6 +475,19 @@ int main(int argc, char *argv[]) {
     }
 
     ostream *out = &cout;
+    ofstream f;
+    f.open("x.txt");
+     out = &f;
+     ll c = 0;
+    for( int i = 0 ; i < 4;i++){
+       
+        if ( c < stats[i].totalCycles) {
+           c = stats[i].totalCycles;
+        }
+    } 
+   *out << "Total Execution Cycles:" << c <<endl;
+   if (f.is_open()) f.close();
+    out = &cout;
     ofstream fout;
     if (!outFile.empty()) {
         fout.open(outFile);
@@ -484,6 +497,8 @@ int main(int argc, char *argv[]) {
         }
         out = &fout;
     }
+    
+    
 
     // Print simulation parameters
     *out << "Simulation Parameters:\n";

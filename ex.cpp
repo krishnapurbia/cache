@@ -42,7 +42,7 @@ int main(int x, char* y[]) {
     for (int &i : d) {
         string j = a + " -t " + b + " -s " + to_string(i) + " -E 2 -b 5 -o output.txt";
         int k = system(j.c_str());
-        ifstream m("output.txt");string n;long long o = 0;
+        ifstream m("x.txt");string n;long long o = 0;
         while(getline(m, n)) {
                       if (n.find("Total Execution Cycles:") != string::npos) {
                                          int p = n.find(":");
@@ -59,7 +59,7 @@ int main(int x, char* y[]) {
     for (int i : e) {
         string j = a + " -t " + b + " -s 6 -E " + to_string(i) + " -b 5 -o output.txt";
         int k = system(j.c_str());
-        ifstream m("output.txt");
+        ifstream m("x.txt");
         string n;
         long long o = 0;
         while (getline(m, n)) {
@@ -76,7 +76,7 @@ int main(int x, char* y[]) {
     for (int &i : f) {
         string j = a + " -t " + b + " -s 6 -E 2 -b " + to_string(i) + " -o output.txt";
         int k = system(j.c_str());
-        ifstream m("output.txt");
+        ifstream m("x.txt");
         string n;
         long long o = 0;
         while (getline(m, n)) {
