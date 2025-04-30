@@ -83,6 +83,7 @@ struct BusRequest {
     unsigned int newtag;
     int othercore = -1;
     int isitshared = 0;
+    ll add = -1;
 
 };
 
@@ -158,6 +159,9 @@ int main(int argc, char *argv[]) {
                 int core = currentReq.core;
                 int setIndex = currentReq.setIndex;
                 unsigned int tag = currentReq.tag;
+                if ( core == 3) {
+                    int y = 33;
+                }
                 //prevbl[core] = false;
                 busQueue.pop_front();
                 busBusy = true;
@@ -205,6 +209,13 @@ int main(int argc, char *argv[]) {
                                 // how a modfiied state can allow E or S other state also not possible
                             }
                             else {
+                                for ( int other=0; other<4; other++) {
+                                    if (other ==core) continue;
+                                    int li = caches[other].findLine(tag, setIndex);
+                                    if(li>=0 && oc.sets[setIndex][li].state  == SHARED) {
+                                        cout <<"erer" <<endl;
+                                    }
+                                }
                                 if (currentReq.type == BusRdX ) {
                                     // hame ise idhr hi invalidate now karna padega
 
@@ -212,6 +223,7 @@ int main(int argc, char *argv[]) {
                                     stats[other].writebacks++;
                                     stats[core].invalidations++;
                                     total_invalidations++;
+                                    stats[other].dataTrafficBytes++;
                                     //oc.sets[setIndex][li].state = INVALID;
                                     // hame on the spot invalidate karna padta he point to remember he ye
                                     // if we want exculisve then we have to invalidate this
@@ -225,7 +237,10 @@ int main(int argc, char *argv[]) {
 
                                     // only writbacks++ in other cache not here
                                     stats[other].writebacks++;
+                                    stats[other].dataTrafficBytes++;
+
                                     busQueue.push_front(currentReq);
+
                                     busQueue.push_front({other,currentReq.tag,currentReq.setIndex,BusWB ,SHARED,currentReq.tag});
                                     Btr[other]++;
                                     busBusy = false;
@@ -238,17 +253,37 @@ int main(int argc, char *argv[]) {
                     }
 
                 } else if(anyOther) {
+
                     // Others had E/S: cache-to-cache transfer
                     // kya yeh assupmtion sahi he ki jab write core1 , data core0 , me to phele date core0 se lo , then
                     // use modify kardo
-                    currentReq.isitshared = 1;
-                    currentReq.othercore = oth;
-                    busCycles = 2*blockWords ;// requires one exrta cycle to complete
+                    if (currentReq.type ==BusRd) {
+                        currentReq.isitshared = 1;
+                        currentReq.othercore = oth;
+                        busCycles = 2*blockWords  ;// requires one exrta cycle to complete
+                        stats[currentReq.othercore].dataTrafficBytes++;
+                        stats[currentReq.core].dataTrafficBytes++;
+                    }
+                    else {
+
+                        for ( int other=0; other<4; other++) {
+                            int li = caches[other].findLine(currentReq.tag, currentReq.setIndex);
+                            if (caches[other].sets[currentReq.setIndex][li].state != INVALID){
+                                caches[other].sets[currentReq.setIndex][li].state = INVALID;
+                                stats[core].invalidations++;
+
+                            }
+
+                        }
+                        stats[core].dataTrafficBytes++;
+                        busCycles = 100;
+                    }
                  //   Btr[oth]++;
                 } else {
                     // No copy: memory fetch
                     // assumption 2*N not work in M to cache tranfer
-                    busCycles = 100; // requires one exrta cycle to complete
+                    stats[core].dataTrafficBytes++;
+                    busCycles = 100 ; // requires one exrta cycle to complete
                 }
             }
         };
@@ -288,10 +323,7 @@ int main(int argc, char *argv[]) {
                                 }
                             }
                         }
-                        if (currentReq.isitshared  == 1) { // execution cycle for othercore
-                            stats[currentReq.othercore].idleCycles -= 4 * (blockWords);
-                            currentReq.isitshared = 0;
-                        }
+
                         // Insert or update line for requesting core (S or E)
                         MESIState newState = (shared ? SHARED : EXCLUSIVE);
                         //— REPLACE from here: upgrade-in-place or allocate/evict —
@@ -319,6 +351,7 @@ int main(int argc, char *argv[]) {
                                     busQueue.push_front({core , V.tag , setIndex ,BusWB , newState , tag  });
                                     stats[core].dataTrafficBytes++;
                                     stats[core].busWB++;
+
                                     Btr[core]++;
                                 }
                                 else {
@@ -332,7 +365,7 @@ int main(int argc, char *argv[]) {
                         //— end replacement —
                     else if(currentReq.type == BusRdX) {
                         // BusRdX: invalidate all other copies
-                        int invalis = 0;
+
                         for(int other=0; other<4; other++) {
                             if(other==core) continue;
                             Cache &oc = caches[other];
@@ -349,11 +382,11 @@ int main(int argc, char *argv[]) {
                                     // so what will do is that
                                 }
                                 oc.sets[setIndex][li].state = INVALID;
-                                invalis += 1;
+
                                 stats[core].invalidations++;
                             }
                         }
-                        total_invalidations += invalis;
+
                         // Insert in M state at requesting core
 
                         int way = cache.findLine(tag, setIndex);
@@ -373,6 +406,8 @@ int main(int argc, char *argv[]) {
                                 int victim = cache.findLRULine(setIndex);
                                 CacheLine &V = cache.sets[setIndex][victim];
                                 stats[core].evictions++;
+                                stats[core].invalidations++;
+
                                 if (V.state == MODIFIED) {
                                     stats[core].writebacks++; // writeback karna padega
                                     // victim.state = INVALID; // isko invalid kardo -> nahi kar rha dekhenge puchchenge kisise
@@ -380,6 +415,7 @@ int main(int argc, char *argv[]) {
                                     busQueue.push_front({core , V.tag , setIndex ,BusWB , MODIFIED , tag  });
                                     stats[core].dataTrafficBytes++;
                                     stats[core].busWB++;
+                                    stats[core].dataTrafficBytes++;
                                     Btr[core]++;
                                 }
                                 else {
@@ -407,7 +443,8 @@ int main(int argc, char *argv[]) {
                     busBusy = false;
 
                     Btr[core]--;
-
+                    BusRequest inv;
+                    currentReq = inv;
                     // Unblock core: data is now available
 
                 }
@@ -417,12 +454,15 @@ int main(int argc, char *argv[]) {
         gunc();
         // 1. Core operations
         for(int core=0; core<4; core++) {
-            if(coreDone[core] ) continue;
+            if(coreDone[core] && currentReq.othercore != core) continue;
             allDone = false;
             stats[core].totalCycles++;
-            if ( employedincachetocache[core]);
+            if (currentReq.othercore == core) {
+               continue;
+            }
             else if ( Btr[core]>0  ) {
-               stats[core].idleCycles++;
+                if (currentReq.othercore == core);
+              else stats[core].idleCycles++;
                 continue;
             }
             string addrStr;
@@ -440,7 +480,7 @@ int main(int argc, char *argv[]) {
             int lineIdx = cache.findLine(tag, setIndex);
             bool hit = (lineIdx>=0 && cache.sets[setIndex][lineIdx].state != INVALID);
             if(op[core]=='R') {
-                // Read operation
+                // Read operationSet Index Bits: 5
                 if(hit) {
                     stats[core].readOps++;
                     // Hit: update LRU
@@ -449,12 +489,12 @@ int main(int argc, char *argv[]) {
 
                 } else {
                     stats[core].readOps++;
-
+                    stats[core].totalCycles+=2; // twoc yc for cexe
                     stats[core].misses++;
                     stats[core].busRd++;
                     busQueue.push_back({core, tag, (int)setIndex, BusRd});
 
-
+                    stats[core].idleCycles++;
                     Btr[core]++;
                 }
             }
@@ -488,7 +528,8 @@ int main(int argc, char *argv[]) {
                     }
                     else if(st == SHARED) {
                         stats[core].busRdX++;
-
+                        stats[core].idleCycles++;
+                        stats[core].totalCycles+=2;
                         busQueue.push_back({core, tag, (int)setIndex, BusRdX});
 
                         // didnt use upgr due to explicit mentiom in clsrification
@@ -501,6 +542,8 @@ int main(int argc, char *argv[]) {
                     stats[core].writeOps++;
                     stats[core].misses++;
                     stats[core].busRdX++;
+                    stats[core].idleCycles++;
+                    stats[core].totalCycles+=2;
                     busQueue.push_back({core, tag, (int)setIndex, BusRdX});
 
                     Btr[core]++;
@@ -569,14 +612,16 @@ int main(int argc, char *argv[]) {
         *out << "Cache Evictions: " << stats[core].evictions << "\n";
         *out << "Writebacks: " << stats[core].writebacks << "\n";
         *out << "Bus Invalidations: " << stats[core].invalidations << "\n";
-        *out << "Data Traffic (Bytes): " << stats[core].dataTrafficBytes << "\n\n";
+        *out << "Data Traffic (Bytes): " << (stats[core].dataTrafficBytes) * ( 1 <<b) << "\n\n";
 
         totalInv += stats[core].invalidations;
         totalRd  += stats[core].busRd;
         totalRdX += stats[core].busRdX;
         totalUpgr+= stats[core].busWB;
         totalBusTransactions += stats[core].busRd + stats[core].busRdX + stats[core].busWB;
-        totalBusTrafficBytes += stats[core].dataTrafficBytes;
+        // one block = noofwords * (size of on word) // ( 4 bytes) = sizeof block = 2**b
+
+        totalBusTrafficBytes += (stats[core].dataTrafficBytes )* ( 1 <<b);
     }
 
 
