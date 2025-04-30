@@ -361,8 +361,9 @@ int main(int argc, char *argv[]) {
                continue;
             }
             else if ( Btr[core]>0  ) {
-                if (currentReq.othercore == core);
-              else stats[core].idleCycles++;
+                 if (currentReq.othercore == core);
+                 else if(currentReq.core == core);
+                 else stats[core].idleCycles++;
                 continue;
             }
             string addrStr;
