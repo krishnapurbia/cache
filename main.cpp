@@ -1,101 +1,4 @@
-#include <bits/stdc++.h>
-using namespace std;
-
-
-enum MESIState { INVALID = 0, SHARED, EXCLUSIVE, MODIFIED };
-
-
-struct CacheLine {
-    unsigned int tag;
-    MESIState state;
-    unsigned long long lru;
-
-    CacheLine() :  tag(0), state(INVALID), lru(0) {}
-};
-
-
-struct Cache {
-    int s, E, b;        // parameters: set index bits, associativity, block offset bits
-    int S, B;           // S = 2^s sets, B = 2^b bytes per block
-    vector<vector<CacheLine>> sets; // 2D array [set][way]
-    static unsigned long long globalLRU; // global counter for LRU
-    Cache(int s_, int E_, int b_) : s(s_), E(E_), b(b_) {
-        S = 1 << s;
-        B = 1 << b;
-        sets.assign(S, vector<CacheLine>(E));
-    }
-    // Find line with matching tag in set; return way index or -1 if miss
-    int findLine(unsigned int tag, int setIdx) {
-        for(int i = 0; i < E; i++) {
-            if(sets[setIdx][i].state!=INVALID && sets[setIdx][i].tag == tag)
-                return i;
-        }
-        return -1;
-    }
-    // Find an invalid line in the set, or -1 if none
-    int findInvalidLine(int setIdx) {
-        for(int i = 0; i < E; i++) {
-            if(sets[setIdx][i].state == INVALID) return i;
-        }
-        return -1;
-    }
-
-    /// *************AKK kamkar totaol cycles  = max of all cores totalcycles
-    // Find least-recently-used line index in set (assumes all valid)
-    int findLRULine(int setIdx) {
-        unsigned long long minLRU = ULLONG_MAX;
-        int lruIdx = 0;
-        for(int i = 0; i < E; i++) {
-            if(sets[setIdx][i].lru < minLRU) {
-                minLRU = sets[setIdx][i].lru;
-                lruIdx = i;
-            }
-        }
-        return lruIdx;
-    }
-};
-#define ll long long int
-unsigned long long Cache::globalLRU = 0;
-
-// Per-core statistics
-struct Stats {
-    long readOps=0, writeOps=0, misses=0;
-    long evictions=0, writebacks=0;
-    long busRd=0, busRdX=0, busWB=0;
-    long idleCycles=0, totalCycles=0;
-    ll bustr = 0;
-    ll dataTrafficBytes = 0;
-    ll invalidations = 0;
-};
-
-// Bus request types
-enum BusType { BusRd, BusRdX,  BusWB , Cache_to , from_Cache};
-// BusWB used when doing writeback when eviction of midified state is taken place
-// BusWBM/RFO  when write back in other cache occur due to modification in  this state so ,
-// we have to writeback that otherstate make that invalid , this will take 100 cycles
-//  in MESI: always write back dirty block before invalidation, even if it looks "wasteful".
-struct BusRequest {
-    int core;
-    unsigned int tag;
-    int setIndex;
-    BusType type;
-    MESIState newstate;
-    unsigned int newtag;
-    int othercore = -1;
-    int isitshared = 0;
-    ll add = -1;
-
-};
-
-long long int  total_invalidations = 0;
-long long int bus_traffic = 0;  //( noofmisses + noofofwritebacks)
-
-// Helper: parse hexadecimal or decimal address string
-unsigned int parseAddress(const string &addrStr) {
-    if(addrStr.rfind("0x", 0)==0 || addrStr.rfind("0X",0)==0)
-        return stoul(addrStr.substr(2), nullptr, 16);
-    return stoul(addrStr, nullptr, 16);
-}
+#include "datast.cpp"
 
 
 int main(int argc, char *argv[]) {
@@ -107,7 +10,7 @@ int main(int argc, char *argv[]) {
         string arg = argv[i];
         if(arg=="-t" && i+1<argc) traceInput = argv[++i];
         else if(arg=="-s" && i+1<argc) s = stoi(argv[++i]);
-        else if(arg=="-E" && i+1<argc) E = stoi(argv[++i]);
+              else if(arg=="-E" && i+1<argc) E = stoi(argv[++i]);
         else if(arg=="-b" && i+1<argc) b = stoi(argv[++i]);
         else if(arg=="-o" && i+1<argc) outFile = argv[++i];
         else { cerr<<"Unknown option "<<arg<<endl; return 1; }
@@ -116,37 +19,34 @@ int main(int argc, char *argv[]) {
         cerr<<"Usage: "<<argv[0]<<" -t <tracefile> -s <s> -E <E> -b <b> -o <outfile>\n";
         return 1;
     }
-
-    // Initialize caches and stats for 4 cores
-    Cache caches[4] = { Cache(s,E,b), Cache(s,E,b), Cache(s,E,b), Cache(s,E,b) };
+    
+    Cache caches[4] = {
+        Cache(s,E,b), Cache(s,E,b),
+        Cache(s,E,b), Cache(s,E,b) };
     Stats stats[4];
 
-    // Attempt to open traceInput as one combined file, else treat as prefix
 
 
     ifstream fin(traceInput);
-
     vector<ifstream> traceFiles(4);
         for(int core=0; core<4; core++) {
-            string f1 = traceInput+"_proc"+to_string(core)+".trace";
+                   string f1 = traceInput+"_proc"+to_string(core)+".trace";
             traceFiles[core].open(f1);
         }
 
-
     vector<bool> coreDone(4,false);
     deque<BusRequest> busQueue;
-    bool busBusy = false;
+         bool busBusy = false;
     long busCycles = 0;
     BusRequest currentReq;
     int blockWords = caches[0].B / (4); // words per block
     vector<char> op(4); vector<unsigned int> addr(4);
-
     // Simulation loop (cycle-by-cycle)
     bool allDone = false;
-    int clk = 0;
+          int clk = 0;
     vector<long long int> Btr(4 ,0);
-    vector <bool > requested ( 4 , false );
-    vector <bool > accepted ( 4 , false );
+      vector <bool > requested ( 4 , false );
+     vector <bool > accepted ( 4 , false );
     vector <bool> employedincachetocache( 4 , false );
     while(true) {
         bool didbusopetakeplace = false;
@@ -174,7 +74,7 @@ int main(int argc, char *argv[]) {
                     if(other==currentReq.core) continue;
                     int li = caches[other].findLine(currentReq.tag, currentReq.setIndex);
                     if(li>=0 && caches[other].sets[currentReq.setIndex][li].state != INVALID) {
-                        anyOther = true;
+                               anyOther = true;
                         oth = other;
                         if(caches[other].sets[currentReq.setIndex][li].state == MODIFIED) {
                             anyMod = true;
@@ -197,15 +97,15 @@ int main(int argc, char *argv[]) {
                     bool gh = false;
                     for(int other=0; other<4; other++) {
                         if(other==core) continue;
-                        Cache &oc = caches[other];
+                         Cache &oc = caches[other];
                         int li = oc.findLine(tag, setIndex);
                         if(li>=0 && oc.sets[setIndex][li].state != INVALID) {
                             if (gh) {
-                                cout <<"error at 196 "<<endl;
+                               // cout <<"error at 196 "<<endl;
                             }
                             if ( oc.sets[setIndex][li].state!= MODIFIED) {
-                                cout << oc.sets[setIndex][li].state << endl;
-                                cout << "Error occured at line 230" <<endl;
+                               // cout << oc.sets[setIndex][li].state << endl;
+                               // cout << "Error occured at line 230" <<endl;
                                 // how a modfiied state can allow E or S other state also not possible
                             }
                             else {
@@ -310,7 +210,7 @@ int main(int argc, char *argv[]) {
                             if(li>=0 && oc.sets[setIndex][li].state != INVALID) {
                                 MESIState ost = oc.sets[setIndex][li].state;
                                 if(ost == MODIFIED) {
-                                    cout <<"error at 270 "<<endl;
+                                   // cout <<"error at 270 "<<endl;
                                     oc.sets[setIndex][li].state = SHARED;
                                     stats[other].writebacks++; // flush dirty data // this is done 100% done
                                     shared = true;
@@ -437,7 +337,7 @@ int main(int argc, char *argv[]) {
                             }
                         }
                         if (!checker) {
-                            cout << "Error at line 358" <<endl;
+                          //  cout << "Error at line 358" <<endl;
                         }
                     }
                     busBusy = false;
@@ -489,7 +389,7 @@ int main(int argc, char *argv[]) {
 
                 } else {
                     stats[core].readOps++;
-                    stats[core].totalCycles+=2; // twoc yc for cexe
+                    stats[core].totalCycles+=1; // twoc yc for cexe
                     stats[core].misses++;
                     stats[core].busRd++;
                     busQueue.push_back({core, tag, (int)setIndex, BusRd});
@@ -512,8 +412,8 @@ int main(int argc, char *argv[]) {
                             int li = oc.findLine(tag, setIndex);
                             if(li>=0 && oc.sets[setIndex][li].state != INVALID) {
                                 MESIState ost = oc.sets[setIndex][li].state;
-                                cout << ost << endl;
-                                cout << "error ar 457 " <<endl;
+                              //  cout << ost << endl;
+                             //   cout << "error ar 457 " <<endl;
 
                             }
                         }
@@ -529,7 +429,7 @@ int main(int argc, char *argv[]) {
                     else if(st == SHARED) {
                         stats[core].busRdX++;
                         stats[core].idleCycles++;
-                        stats[core].totalCycles+=2;
+                        stats[core].totalCycles+=1;
                         busQueue.push_back({core, tag, (int)setIndex, BusRdX});
 
                         // didnt use upgr due to explicit mentiom in clsrification
@@ -543,7 +443,7 @@ int main(int argc, char *argv[]) {
                     stats[core].misses++;
                     stats[core].busRdX++;
                     stats[core].idleCycles++;
-                    stats[core].totalCycles+=2;
+                    stats[core].totalCycles+=1;
                     busQueue.push_back({core, tag, (int)setIndex, BusRdX});
 
                     Btr[core]++;
@@ -564,7 +464,7 @@ int main(int argc, char *argv[]) {
 
     vector<double> missRate(4);
     for(int core=0; core<4; core++) {
-        long acc = stats[core].readOps + stats[core].writeOps;
+               long acc = stats[core].readOps + stats[core].writeOps;
         missRate[core] = (acc>0 ? (double)stats[core].misses / acc : 0.0);
     }
 
@@ -598,6 +498,11 @@ int main(int argc, char *argv[]) {
     long totalBusTrafficBytes = 0;
 
     for (int core = 0; core < 4; core++) {
+        totalRdX += stats[core].busRdX;
+        totalUpgr+= stats[core].busWB;
+        totalInv += stats[core].invalidations;
+        totalRd  += stats[core].busRd;
+        totalBusTransactions += stats[core].busRd + stats[core].busRdX + stats[core].busWB;
         *out << "Core " << core << " Statistics:\n";
         *out << "Total Instructions: " << (stats[core].readOps + stats[core].writeOps) << "\n";
         *out << "Total Reads: " << stats[core].readOps << "\n";
@@ -614,11 +519,7 @@ int main(int argc, char *argv[]) {
         *out << "Bus Invalidations: " << stats[core].invalidations << "\n";
         *out << "Data Traffic (Bytes): " << (stats[core].dataTrafficBytes) * ( 1 <<b) << "\n\n";
 
-        totalInv += stats[core].invalidations;
-        totalRd  += stats[core].busRd;
-        totalRdX += stats[core].busRdX;
-        totalUpgr+= stats[core].busWB;
-        totalBusTransactions += stats[core].busRd + stats[core].busRdX + stats[core].busWB;
+      
         // one block = noofwords * (size of on word) // ( 4 bytes) = sizeof block = 2**b
 
         totalBusTrafficBytes += (stats[core].dataTrafficBytes )* ( 1 <<b);
