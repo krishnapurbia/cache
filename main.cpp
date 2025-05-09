@@ -82,6 +82,8 @@ int main(int argc, char *argv[]) {
                     }
                 }
                 if ( currentReq.type == BusWB) {
+                    stats[currentReq.core].dataTrafficBytes++;
+                    stats[currentReq.core].writebacks++;
                     busCycles = 100 ;
                     // ak confusion he ki us state ko
                     // invalid kar ya naho aaccording to
@@ -120,10 +122,10 @@ int main(int argc, char *argv[]) {
                                     // hame ise idhr hi invalidate now karna padega
 
                                     // ownership ka seen he yeh
-                                    stats[other].writebacks++;
+                                    
                                     stats[core].invalidations++;
                                     total_invalidations++;
-                                    stats[other].dataTrafficBytes++;
+                                    
                                     //oc.sets[setIndex][li].state = INVALID;
                                     // hame on the spot invalidate karna padta he point to remember he ye
                                     // if we want exculisve then we have to invalidate this
@@ -136,9 +138,9 @@ int main(int argc, char *argv[]) {
                                 else {
 
                                     // only writbacks++ in other cache not here
-                                    stats[other].writebacks++;
-                                    stats[other].dataTrafficBytes++;
-
+                                  //  stats[other].writebacks++;
+                                   
+                                    
                                     busQueue.push_front(currentReq);
 
                                     busQueue.push_front({other,currentReq.tag,currentReq.setIndex,BusWB ,SHARED,currentReq.tag});
@@ -165,12 +167,12 @@ int main(int argc, char *argv[]) {
                         stats[currentReq.core].dataTrafficBytes++;
                     }
                     else {
-
+                        stats[core].invalidations++;
                         for ( int other=0; other<4; other++) {
                             int li = caches[other].findLine(currentReq.tag, currentReq.setIndex);
                             if (caches[other].sets[currentReq.setIndex][li].state != INVALID){
                                 caches[other].sets[currentReq.setIndex][li].state = INVALID;
-                                stats[core].invalidations++;
+                               
 
                             }
 
@@ -212,7 +214,7 @@ int main(int argc, char *argv[]) {
                                 if(ost == MODIFIED) {
                                    // cout <<"error at 270 "<<endl;
                                     oc.sets[setIndex][li].state = SHARED;
-                                    stats[other].writebacks++; // flush dirty data // this is done 100% done
+                                 //   stats[other].writebacks++; // flush dirty data // this is done 100% done
                                     shared = true;
                                 }
                                 else if(ost == EXCLUSIVE) {
@@ -245,11 +247,11 @@ int main(int argc, char *argv[]) {
                                 CacheLine &V = cache.sets[setIndex][victim];
                                 stats[core].evictions++;
                                 if (V.state == MODIFIED) {
-                                    stats[core].writebacks++; // writeback karna padega
+                                  //  stats[core].writebacks++; // writeback karna padega
                                     // victim.state = INVALID; // isko invalid kardo -> nahi kar rha dekhenge puchchenge kisise
                                     //  maybe kya isko end invalid kar u ya abhi confusion he  <----- Doubt he
                                     busQueue.push_front({core , V.tag , setIndex ,BusWB , newState , tag  });
-                                    stats[core].dataTrafficBytes++;
+                                   
                                     stats[core].busWB++;
 
                                     Btr[core]++;
@@ -271,10 +273,11 @@ int main(int argc, char *argv[]) {
                             Cache &oc = caches[other];
                             int li = oc.findLine(tag, setIndex);
                             if(li>=0 && oc.sets[setIndex][li].state != INVALID) {
+                                cout << "EROROROR 327 " <<endl; ///////--->>>> seeeeee gthis     
                                 MESIState ost = oc.sets[setIndex][li].state;
                                 if(ost == MODIFIED) {
                                     cout << "EROROROR 327 " <<endl;
-                                    stats[other].writebacks++   ;
+                                 //   stats[other].writebacks++   ;
                                     // iska bhi kuch nhi -> count karliya ->
                                     // writekrnapadega ( RULE hai even though kam nahi ayega)
                                     oc.sets[setIndex][li].state = INVALID;
@@ -306,16 +309,16 @@ int main(int argc, char *argv[]) {
                                 int victim = cache.findLRULine(setIndex);
                                 CacheLine &V = cache.sets[setIndex][victim];
                                 stats[core].evictions++;
-                                stats[core].invalidations++;
+                               // stats[core].invalidations++;
 
                                 if (V.state == MODIFIED) {
-                                    stats[core].writebacks++; // writeback karna padega
+                                  //  stats[core].writebacks++; // writeback karna padega
                                     // victim.state = INVALID; // isko invalid kardo -> nahi kar rha dekhenge puchchenge kisise
                                     //  maybe kya isko end invalid kar u ya abhi confusion he  <----- Doubt he
                                     busQueue.push_front({core , V.tag , setIndex ,BusWB , MODIFIED , tag  });
-                                    stats[core].dataTrafficBytes++;
+                                   // stats[core].dataTrafficBytes++;
                                     stats[core].busWB++;
-                                    stats[core].dataTrafficBytes++;
+                                    //stats[core].dataTrafficBytes++;
                                     Btr[core]++;
                                 }
                                 else {
@@ -514,16 +517,17 @@ int main(int argc, char *argv[]) {
     *out << "Replacement Policy: LRU\n";
     *out << "Bus: Central snooping bus\n\n";
 
-    long totalInv = 0, totalRd = 0, totalRdX = 0, totalUpgr = 0;
-    long totalBusTransactions = 0;
-    long totalBusTrafficBytes = 0;
+    ll totalInv = 0, totalRd = 0, totalRdX = 0, totalUpgr = 0;
+    ll totalBusTransactions = 0;
+    ll totalBusTrafficBytes = 0;
 
     for (int core = 0; core < 4; core++) {
         totalRdX += stats[core].busRdX;
         totalUpgr+= stats[core].busWB;
         totalInv += stats[core].invalidations;
         totalRd  += stats[core].busRd;
-        totalBusTransactions += stats[core].busRd + stats[core].busRdX + stats[core].busWB;
+        totalBusTransactions += stats[core].busRd + stats[core].busRdX ;
+        //    totalBusTransactions += stats[core].busRd + stats[core].busRdX + stats[core].invalidations;  // if indiv karna he to and har invalidations pe++ kardena he
         *out << "Core " << core << " Statistics:\n";
         *out << "Total Instructions: " << (stats[core].readOps + stats[core].writeOps) << "\n";
         *out << "Total Reads: " << stats[core].readOps << "\n";
